@@ -1,0 +1,8 @@
+let age = 20
+
+if age >= 18 {
+    say "You are an adult"
+} otherwise {
+    say "You are under 18"
+}
+

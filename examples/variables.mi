@@ -1,0 +1,9 @@
+# My first Nova program
+
+let name = "Ismail"
+let age = 20
+
+say name
+say age
+
+say "Hello, " + name

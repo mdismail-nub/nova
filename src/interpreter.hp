@@ -1,0 +1,338 @@
+#include "interpreter.hpp"
+
+#include <iostream>
+#include <stdexcept>
+
+void Interpreter::run(const Program& program) {
+
+    for (const auto& statement : program.statements) {
+        execute(statement.get());
+    }
+}
+
+void Interpreter::execute(const Stmt* statement) {
+
+    if (const auto* let = dynamic_cast<const LetStmt*>(statement)) {
+
+        RuntimeValue value = evaluate(let->value.get());
+
+        variables[let->name] = value;
+
+        return;
+    }
+
+    if (const auto* say = dynamic_cast<const SayStmt*>(statement)) {
+
+        RuntimeValue value =
+            evaluate(say->expression.get());
+
+        printValue(value);
+
+        return;
+    }
+
+    throw std::runtime_error(
+        "Unknown statement."
+    );
+}
+
+RuntimeValue Interpreter::evaluate(
+    const Expr* expression
+) {
+
+    if (const auto* number =
+            dynamic_cast<const NumberExpr*>(expression)) {
+
+        RuntimeValue value;
+
+        value.type = RuntimeValue::Type::Number;
+        value.number = number->value;
+
+        return value;
+    }
+
+    if (const auto* string =
+            dynamic_cast<const StringExpr*>(expression)) {
+
+        RuntimeValue value;
+
+        value.type = RuntimeValue::Type::String;
+        value.string = string->value;
+
+        return value;
+    }
+
+    if (const auto* boolean =
+            dynamic_cast<const BooleanExpr*>(expression)) {
+
+        RuntimeValue value;
+
+        value.type = RuntimeValue::Type::Boolean;
+        value.boolean = boolean->value;
+
+        return value;
+    }
+
+    if (const auto* variable =
+            dynamic_cast<const VariableExpr*>(expression)) {
+
+        return getVariable(variable->name);
+    }
+
+    if (const auto* binary =
+            dynamic_cast<const BinaryExpr*>(expression)) {
+
+        return evaluateBinary(binary);
+    }
+
+    throw std::runtime_error(
+        "Unknown expression."
+    );
+}
+
+RuntimeValue Interpreter::getVariable(
+    const std::string& name
+) {
+
+    auto found = variables.find(name);
+
+    if (found == variables.end()) {
+
+        throw std::runtime_error(
+            "Undefined variable: " + name
+        );
+    }
+
+    return found->second;
+}
+
+RuntimeValue Interpreter::evaluateBinary(
+    const BinaryExpr* expression
+) {
+
+    RuntimeValue left =
+        evaluate(expression->left.get());
+
+    RuntimeValue right =
+        evaluate(expression->right.get());
+
+    const std::string& op = expression->op;
+
+    // Number arithmetic
+    if (
+        left.type == RuntimeValue::Type::Number &&
+        right.type == RuntimeValue::Type::Number
+    ) {
+
+        if (op == "+") {
+            return {
+                RuntimeValue::Type::Number,
+                left.number + right.number,
+                "",
+                false
+            };
+        }
+
+        if (op == "-") {
+            return {
+                RuntimeValue::Type::Number,
+                left.number - right.number,
+                "",
+                false
+            };
+        }
+
+        if (op == "*") {
+            return {
+                RuntimeValue::Type::Number,
+                left.number * right.number,
+                "",
+                false
+            };
+        }
+
+        if (op == "/") {
+
+            if (right.number == 0) {
+                throw std::runtime_error(
+                    "Cannot divide by zero."
+                );
+            }
+
+            return {
+                RuntimeValue::Type::Number,
+                left.number / right.number,
+                "",
+                false
+            };
+        }
+
+        if (op == "==") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.number == right.number
+            };
+        }
+
+        if (op == "!=") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.number != right.number
+            };
+        }
+
+        if (op == ">") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.number > right.number
+            };
+        }
+
+        if (op == "<") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.number < right.number
+            };
+        }
+
+        if (op == ">=") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.number >= right.number
+            };
+        }
+
+        if (op == "<=") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.number <= right.number
+            };
+        }
+    }
+
+    // String concatenation
+    if (
+        left.type == RuntimeValue::Type::String &&
+        right.type == RuntimeValue::Type::String &&
+        op == "+"
+    ) {
+
+        RuntimeValue value;
+
+        value.type = RuntimeValue::Type::String;
+        value.string = left.string + right.string;
+
+        return value;
+    }
+
+    // String comparison
+    if (
+        left.type == RuntimeValue::Type::String &&
+        right.type == RuntimeValue::Type::String
+    ) {
+
+        if (op == "==") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.string == right.string
+            };
+        }
+
+        if (op == "!=") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.string != right.string
+            };
+        }
+    }
+
+    // Boolean comparison
+    if (
+        left.type == RuntimeValue::Type::Boolean &&
+        right.type == RuntimeValue::Type::Boolean
+    ) {
+
+        if (op == "==") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.boolean == right.boolean
+            };
+        }
+
+        if (op == "!=") {
+            return {
+                RuntimeValue::Type::Boolean,
+                0,
+                "",
+                left.boolean != right.boolean
+            };
+        }
+    }
+
+    throw std::runtime_error(
+        "Invalid operation: " + op
+    );
+}
+
+void Interpreter::printValue(
+    const RuntimeValue& value
+) {
+
+    switch (value.type) {
+
+        case RuntimeValue::Type::Number:
+            std::cout << value.number << '\n';
+            break;
+
+        case RuntimeValue::Type::String:
+            std::cout << value.string << '\n';
+            break;
+
+        case RuntimeValue::Type::Boolean:
+            std::cout
+                << (value.boolean ? "true" : "false")
+                << '\n';
+            break;
+
+        case RuntimeValue::Type::None:
+            std::cout << "none\n";
+            break;
+    }
+}
+
+bool Interpreter::isTruthy(
+    const RuntimeValue& value
+) {
+
+    if (value.type == RuntimeValue::Type::Boolean) {
+        return value.boolean;
+    }
+
+    if (value.type == RuntimeValue::Type::Number) {
+        return value.number != 0;
+    }
+
+    if (value.type == RuntimeValue::Type::String) {
+        return !value.string.empty();
+    }
+
+    return false;
+}

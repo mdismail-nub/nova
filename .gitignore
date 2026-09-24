@@ -1,0 +1,5 @@
+nova
+*.o
+build/
+.idea/
+.vscode/
